@@ -16,9 +16,9 @@ This research uses a variety of models, such as the Defuant Model and the Ising 
 
 * Ising Model: This model represents agents as spins on a lattice and uses statistical mechanics to simulate opinion dynamics. Defuant Model: This model seeks to explain how people with different viewpoints interact with one another in order to determine if polarisation or consensus forms.  
 
-* running: python assignment.py -ising_model (default model) followed by -external and -alpha for adjusting parameters.
+* running: python FCP_assignment.py -ising_model (default model) followed by -external and -alpha for adjusting parameters.
 
-* testing: python assignment.py -test_ising
+* testing: python3 FCP_assignment.py -test_ising
 
 
 <h3>Task 2 (Defuant Model - Abdalrahim):</h3>
