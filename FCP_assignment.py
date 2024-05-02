@@ -308,7 +308,7 @@ def test_networks():
 This section contains code for the Ising Model - task 1 in the assignment
 ==============================================================================================================
 '''
-def calculate_agreement(population, row, col,alpha=1.0, external=0.0):
+def calculate_agreement(population, row, col, external=0.0):
 
     n_rows, n_cols = population.shape
     current_opinion = population[row, col]
@@ -317,20 +317,17 @@ def calculate_agreement(population, row, col,alpha=1.0, external=0.0):
     # Calculate agreement with horizontal neighbors
     left_neighbor = population[row, (col - 1) % n_cols]
     right_neighbor = population[row, (col + 1) % n_cols]
-    total_agreement += current_opinion * left_neighbor + current_opinion * right_neighbor
 
     # Calculate agreement with vertical neighbors
     top_neighbor = population[(row - 1) % n_rows, col]
     bottom_neighbor = population[(row + 1) % n_rows, col]
-    total_agreement += current_opinion * top_neighbor + current_opinion * bottom_neighbor
 
-    # Add contribution from external influence
-    total_agreement += 2 * external * current_opinion
+    total_agreement = current_opinion * (left_neighbor + right_neighbor + top_neighbor + bottom_neighbor) + external * current_opinion
 
     # Calculate change in agreement if the cell flips its value
     change_in_agreement = -2 * total_agreement
-    change_in_agreement/=alpha
-    return change_in_agreement
+
+    return total_agreement
 
 
 def ising_step(population, external=0.0,alpha=1.0):
@@ -339,15 +336,19 @@ def ising_step(population, external=0.0,alpha=1.0):
     row = np.random.randint(0, n_rows)
     col = np.random.randint(0, n_cols)
 
-    change_in_agreement = calculate_agreement(population, row, col, external,alpha)
+    total_agreement = calculate_agreement(population, row, col, external)
 
-    if change_in_agreement < 0 or np.random.rand() < np.exp(-change_in_agreement):
+    if total_agreement <= 0:
         population[row, col] *= -1
+
+    elif total_agreement > 0 and alpha is not None and alpha != 0:
+        if np.random.rand() < np.exp(-total_agreement/ alpha):
+            population[row, col] *= -1
 
 def plot_ising(im, population):
     new_im = np.array([[255 if val == -1 else 1 for val in rows] for rows in population], dtype=np.int8)
     im.set_data(new_im)
-    plt.show()
+    plt.pause(0.1)
 
 def test_ising():
     print("Testing ising model calculations")
@@ -373,8 +374,8 @@ def test_ising():
     population = -np.ones((3, 3))
     assert (calculate_agreement(population, 1, 1, 1) == 3), "Test 7"
     assert (calculate_agreement(population, 1, 1, -1) == 5), "Test 8"
-    assert (calculate_agreement(population, 1, 1, 10) == 14), "Test 9"
-    assert (calculate_agreement(population, 1, 1, -10) == -6), "Test 10"
+    assert (calculate_agreement(population, 1, 1, 10) == -6), "Test 9"
+    assert (calculate_agreement(population, 1, 1, -10) == 14), "Test 10"
 
     print("Tests passed")
 
@@ -383,7 +384,7 @@ def ising_main(population, alpha=1.0, external=0.0):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.set_axis_off()
-    im = ax.imshow(population, interpolation='none', cmap='RdPu_r')
+    im = ax.imshow(population, interpolation='none', cmap='RdPu')
 
     # Iterating an update 100 times
     for frame in range(100):
@@ -392,6 +393,7 @@ def ising_main(population, alpha=1.0, external=0.0):
             ising_step(population, external,alpha)
         print('Step:', frame, end='\r')
         plot_ising(im, population)
+
 '''
 ==============================================================================================================
 This section contains code for the Defuant Model - task 2 in the assignment
@@ -399,7 +401,18 @@ This section contains code for the Defuant Model - task 2 in the assignment
 '''
 # helper function 1
 def defuant_update(opinions, beta, threshold, is_network=False):
+    """
+    Perform a single update according to the Deffuant model.
 
+    Args:
+        opinions (numpy.ndarray): Array representing opinions of individuals.
+        beta (float): Coupling parameter.
+        threshold (float): Threshold parameter.
+
+    Returns:
+        None
+    """
+    
     if is_network:
         person = np.random.choice(opinions.nodes)
 
@@ -461,6 +474,18 @@ def defuant_update(opinions, beta, threshold, is_network=False):
 
 # helper function 2
 def defuant_plot(iteration_data, beta, threshold):
+    """
+    Plot the evolution of opinions over iterations and a histogram of final opinions.
+
+    Args:
+        iteration_data (numpy.ndarray): Array containing opinions at each iteration.
+        beta (float): Coupling parameter.
+        threshold (float): Threshold parameter.
+
+    Returns:
+        None
+    """
+
     # Create an array of indices for plotting
     indices = np.arange(iteration_data.shape[0]).reshape(-1, 1)
     duplicated_indices = np.tile(indices, (1, iteration_data.shape[1]))
@@ -614,6 +639,9 @@ This section contains code for the main function- you should write some code for
 def main():
 
     parser = argparse.ArgumentParser(description='running tasks 1-5, fcp final project')
+
+    ########################### Adding Parser Arguments ###########################
+
     #TASK 1 ARGS
     parser.add_argument('-ising_model', action='store_true', help='Run the Ising model')
     parser.add_argument("-external", type=float, default=0.0, help="external influence is zero")
@@ -638,17 +666,22 @@ def main():
 
     # TASK 5 ARGS  
     parser.add_argument("-use_network", type=int)
+
+    ########################### End Adding Parser Arguments ###########################
+
     args = parser.parse_args()
 
     ########################### interpreting terminal flags ###########################
     
+    # Task 1
     if args.ising_model:
-        population = -np.ones((100, 100))
+        population = -np.random.choice([-1,1], size=(100, 100))
         ising_step(population,external=args.external)
         ising_main(population,alpha=args.alpha,external=args.external)
 
     if args.test_ising:
         test_ising()
+
 
     # Task 2
     beta = args.beta
@@ -708,6 +741,8 @@ def main():
     if args.defuant and args.use_network:
         n = args.use_network
         defuant_main(is_network=True, population=n ,beta=args.beta, threshold=args.threshold)
+
+    ########################### End interpreting terminal flags ###########################
 
 
 if __name__=="__main__":
